@@ -51,14 +51,13 @@
             width: 120px;  
             height: 120px; 
             position: absolute;
-            bottom: 120px; /* Subido un poco para dar espacio a los botones */
+            bottom: 120px; 
             left: calc(50% - 60px);
             background-image: url('snoopy.png');
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
             z-index: 5;
-            transition: left 0.08s linear; /* Movimiento suave con botones */
             will-change: left;
         }
 
@@ -74,7 +73,7 @@
             will-change: top;
         }
 
-        /* --- NUEVOS CONTROLES TÁCTILES PARA EL CELULAR --- */
+        /* Controles táctiles en el celular */
         #zona-controles {
             position: absolute;
             bottom: 0;
@@ -88,7 +87,7 @@
         .btn-control {
             flex: 1;
             height: 100%;
-            background: rgba(255, 255, 255, 0.15); /* Súper sutiles y estéticos */
+            background: rgba(255, 255, 255, 0.15); 
             border: 1px solid rgba(255, 255, 255, 0.3);
             display: flex;
             align-items: center;
@@ -97,8 +96,8 @@
             color: rgba(30, 41, 59, 0.7);
         }
 
-        .btn-control:active {
-            background: rgba(255, 255, 255, 0.4); /* Brilla al tocarlo */
+        .btn-control:transparent {
+            background: rgba(255, 255, 255, 0.4); 
         }
 
         /* Menú de Inicio / Game Over */
@@ -176,7 +175,6 @@
         const audioMusica = document.getElementById('musica-fondo');
         const audioAtrapado = document.getElementById('sonido-atrapado');
 
-        // Botones táctiles
         const btnIzq = document.getElementById('btn-izq');
         const btnDer = document.getElementById('btn-der');
 
@@ -192,44 +190,62 @@
 
         const listaSnacks = ['🍓', '🍩', '🍪', '🍦', '🍰'];
 
+        // ESTADOS DE MOVIMIENTO CONTÍNUO
+        let moviendoIzquierda = false;
+        let moviendoDerecha = false;
+        const velocidadSnoopy = 7; // Píxeles por cuadro (puedes subirlo si quieres que corra más rápido)
+
         window.addEventListener('resize', () => {
             anchoPantalla = pantalla.clientWidth;
         });
 
-        // --- SISTEMA DE MOVIMIENTO REFORMADO (Botones, Flechas y Mouse) ---
-        function mover(direccion) {
+        // --- BUCLE DE MOVIMIENTO DE SNOOPY ---
+        function actualizarMovimientoSnoopy() {
             if (!juegoActivo) return;
-            const paso = 35; // Distancia que avanza por toque
-            if (direccion === 'izq') {
-                posicionSnoopy -= paso;
+
+            if (moviendoIzquierda) {
+                posicionSnoopy -= velocidadSnoopy;
                 if (posicionSnoopy < 0) posicionSnoopy = 0;
-            } else if (direccion === 'der') {
-                posicionSnoopy += paso;
+            }
+            if (moviendoDerecha) {
+                posicionSnoopy += velocidadSnoopy;
                 if (posicionSnoopy > (anchoPantalla - anchoSnoopy)) posicionSnoopy = anchoPantalla - anchoSnoopy;
             }
+
             snoopy.style.left = posicionSnoopy + 'px';
+            requestAnimationFrame(actualizarMovimientoSnoopy);
         }
 
-        // Eventos para botones táctiles en celular
-        btnIzq.addEventListener('touchstart', (e) => { e.preventDefault(); mover('izq'); });
-        btnDer.addEventListener('touchstart', (e) => { e.preventDefault(); mover('der'); });
+        // --- ENLAZAR BOTONES TÁCTILES (MÓVIL) ---
+        btnIzq.addEventListener('touchstart', (e) => { e.preventDefault(); moviendoIzquierda = true; });
+        btnIzq.addEventListener('touchend', (e) => { e.preventDefault(); moviendoIzquierda = false; });
 
-        // Eventos de clic para PC sobre los botones
-        btnIzq.addEventListener('click', () => mover('izq'));
-        btnDer.addEventListener('click', () => mover('der'));
+        btnDer.addEventListener('touchstart', (e) => { e.preventDefault(); moviendoDerecha = true; });
+        btnDer.addEventListener('touchend', (e) => { e.preventDefault(); moviendoDerecha = false; });
 
-        // Soporte extra con flechas del teclado
+        // --- ENLAZAR MOUSE (POR SI PRUEBAS EN PC) ---
+        btnIzq.addEventListener('mousedown', () => moviendoIzquierda = true);
+        btnIzq.addEventListener('mouseup', () => moviendoIzquierda = false);
+        btnIzq.addEventListener('mouseleave', () => moviendoIzquierda = false);
+
+        btnDer.addEventListener('mousedown', () => moviendoDerecha = true);
+        btnDer.addEventListener('mouseup', () => moviendoDerecha = false);
+        btnDer.addEventListener('mouseleave', () => moviendoDerecha = false);
+
+        // --- SOPORTE TECLADO (FLECHAS) ---
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') mover('izq');
-            if (e.key === 'ArrowRight') mover('der');
+            if (e.key === 'ArrowLeft') moviendoIzquierda = true;
+            if (e.key === 'ArrowRight') moviendoDerecha = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') moviendoIzquierda = false;
+            if (e.key === 'ArrowRight') moviendoDerecha = false;
         });
 
 
         // --- LÓGICA DE UN SOLO SNACK A LA VEZ ---
         function gestionarFlujoSnacks() {
             if (!juegoActivo) return;
-            
-            // Espera un pequeño tiempo aleatorio entre 0.5 y 1.2 segundos antes de tirar el Siguiente Dulce
             let tiempoEspera = Math.random() * (1200 - 500) + 500;
             timeoutCreacion = setTimeout(crearSnack, tiempoEspera);
         }
@@ -249,7 +265,6 @@
 
             let posicionY = -50;
             const altoPantalla = pantalla.clientHeight;
-            // Límite de altura ajustado a la nueva posición de Snoopy
             const limiteSuelo = altoPantalla - 240; 
 
             function caer() {
@@ -275,13 +290,12 @@
 
                         if (puntos % 8 === 0) velocidadCaida += 0.6;
                         
-                        // IMPORTANTE: Cuando se atrapa, llamamos a que se genere el siguiente
                         gestionarFlujoSnacks();
                         return;
                     }
                 }
 
-                // Si cae al fondo (pasa de largo)
+                // Si cae al fondo
                 if (posicionY > (altoPantalla - 100)) {
                     snack.remove();
                     vidas--;
@@ -290,7 +304,6 @@
                     if (vidas <= 0) {
                         finalizarJuego();
                     } else {
-                        // IMPORTANTE: Si se cae, también llamamos al siguiente
                         gestionarFlujoSnacks();
                     }
                 } else {
@@ -307,7 +320,6 @@
             velocidadCaida = 4;
             anchoPantalla = pantalla.clientWidth;
             
-            // Centrar a Snoopy al inicio
             posicionSnoopy = (anchoPantalla / 2) - (anchoSnoopy / 2);
             snoopy.style.left = posicionSnoopy + 'px';
             
@@ -316,18 +328,25 @@
             menuInicio.style.display = 'none';
             juegoActivo = true;
 
+            // Reiniciar estados de movimiento
+            moviendoIzquierda = false;
+            moviendoDerecha = false;
+
             audioMusica.play().catch(error => console.log("Audio interact"));
 
             document.querySelectorAll('.snack').forEach(s => s.remove());
             clearTimeout(timeoutCreacion);
             
-            // Lanza el primer snack de la partida
+            // Iniciar bucles de juego
             crearSnack();
+            actualizarMovimientoSnoopy();
         }
 
         function finalizarJuego() {
             juegoActivo = false;
             clearTimeout(timeoutCreacion);
+            moviendoIzquierda = false;
+            moviendoDerecha = false;
             audioMusica.pause();
             audioMusica.currentTime = 0;
             tituloMenu.innerHTML = "¡Fin del Juego! 🍓<br><span style='font-size:24px;'>Puntaje: " + puntos + "</span>";
