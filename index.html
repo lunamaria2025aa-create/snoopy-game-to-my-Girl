@@ -46,31 +46,59 @@
             text-shadow: 2px 2px 0px white;
         }
 
-        /* SNOOPY AGRANDADO A 120PX */
+        /* Personaje Snoopy (120px) */
         #snoopy {
             width: 120px;  
             height: 120px; 
             position: absolute;
-            bottom: 30px; 
+            bottom: 120px; /* Subido un poco para dar espacio a los botones */
             left: calc(50% - 60px);
             background-image: url('snoopy.png');
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
             z-index: 5;
+            transition: left 0.08s linear; /* Movimiento suave con botones */
             will-change: left;
         }
 
         /* Snacks que caen */
         .snack {
             position: absolute;
-            font-size: 40px; /* Un poquito más grandes también */
+            font-size: 40px; 
             width: 45px;
             height: 45px;
             text-align: center;
             line-height: 45px;
             z-index: 4;
             will-change: top;
+        }
+
+        /* --- NUEVOS CONTROLES TÁCTILES PARA EL CELULAR --- */
+        #zona-controles {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            display: flex;
+            z-index: 15;
+        }
+
+        .btn-control {
+            flex: 1;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15); /* Súper sutiles y estéticos */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 35px;
+            color: rgba(30, 41, 59, 0.7);
+        }
+
+        .btn-control:active {
+            background: rgba(255, 255, 255, 0.4); /* Brilla al tocarlo */
         }
 
         /* Menú de Inicio / Game Over */
@@ -107,10 +135,6 @@
             font-family: inherit;
             box-shadow: 0 6px 10px rgba(0,0,0,0.15);
         }
-
-        .btn-jugar:active {
-            transform: scale(0.95);
-        }
     </style>
 </head>
 <body>
@@ -129,6 +153,12 @@
         <!-- Personaje Snoopy -->
         <div id="snoopy"></div>
 
+        <!-- Botones en pantalla para el celular -->
+        <div id="zona-controles">
+            <div id="btn-izq" class="btn-control">◀</div>
+            <div id="btn-der" class="btn-control">▶</div>
+        </div>
+
         <!-- Pantalla de Estado -->
         <div id="menu-inicio" class="pantalla-estado">
             <h1 id="titulo-menu">Snoopy<br>Sweet Snacks</h1>
@@ -146,13 +176,18 @@
         const audioMusica = document.getElementById('musica-fondo');
         const audioAtrapado = document.getElementById('sonido-atrapado');
 
+        // Botones táctiles
+        const btnIzq = document.getElementById('btn-izq');
+        const btnDer = document.getElementById('btn-der');
+
         let puntos = 0;
         let vidas = 5;
         let juegoActivo = false;
-        let velocidadCaida = 3.5; // Caída inicial ligeramente más suave
-        let intervaloCreacion;
+        let velocidadCaida = 4; 
+        let timeoutCreacion;
         
-        const anchoSnoopy = 120; // Actualizado a 120
+        const anchoSnoopy = 120; 
+        let posicionSnoopy = 0;
         let anchoPantalla = pantalla.clientWidth;
 
         const listaSnacks = ['🍓', '🍩', '🍪', '🍦', '🍰'];
@@ -161,29 +196,44 @@
             anchoPantalla = pantalla.clientWidth;
         });
 
-        // Controles Táctiles y Mouse
-        function moverSnoopy(coordenadaX) {
+        // --- SISTEMA DE MOVIMIENTO REFORMADO (Botones, Flechas y Mouse) ---
+        function mover(direccion) {
             if (!juegoActivo) return;
-            
-            let nuevaPos = coordenadaX - (anchoSnoopy / 2);
-            
-            if (nuevaPos < 0) nuevaPos = 0;
-            if (nuevaPos > (anchoPantalla - anchoSnoopy)) nuevaPos = anchoPantalla - anchoSnoopy;
-            
-            snoopy.style.left = nuevaPos + 'px';
+            const paso = 35; // Distancia que avanza por toque
+            if (direccion === 'izq') {
+                posicionSnoopy -= paso;
+                if (posicionSnoopy < 0) posicionSnoopy = 0;
+            } else if (direccion === 'der') {
+                posicionSnoopy += paso;
+                if (posicionSnoopy > (anchoPantalla - anchoSnoopy)) posicionSnoopy = anchoPantalla - anchoSnoopy;
+            }
+            snoopy.style.left = posicionSnoopy + 'px';
         }
 
-        pantalla.addEventListener('touchmove', (e) => {
-            const toque = e.touches[0];
-            moverSnoopy(toque.clientX);
-        }, { passive: true });
+        // Eventos para botones táctiles en celular
+        btnIzq.addEventListener('touchstart', (e) => { e.preventDefault(); mover('izq'); });
+        btnDer.addEventListener('touchstart', (e) => { e.preventDefault(); mover('der'); });
 
-        pantalla.addEventListener('mousemove', (e) => {
-            const rect = pantalla.getBoundingClientRect();
-            moverSnoopy(e.clientX - rect.left);
+        // Eventos de clic para PC sobre los botones
+        btnIzq.addEventListener('click', () => mover('izq'));
+        btnDer.addEventListener('click', () => mover('der'));
+
+        // Soporte extra con flechas del teclado
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') mover('izq');
+            if (e.key === 'ArrowRight') mover('der');
         });
 
-        // Lógica de los Snacks
+
+        // --- LÓGICA DE UN SOLO SNACK A LA VEZ ---
+        function gestionarFlujoSnacks() {
+            if (!juegoActivo) return;
+            
+            // Espera un pequeño tiempo aleatorio entre 0.5 y 1.2 segundos antes de tirar el Siguiente Dulce
+            let tiempoEspera = Math.random() * (1200 - 500) + 500;
+            timeoutCreacion = setTimeout(crearSnack, tiempoEspera);
+        }
+
         function crearSnack() {
             if (!juegoActivo) return;
 
@@ -199,8 +249,8 @@
 
             let posicionY = -50;
             const altoPantalla = pantalla.clientHeight;
-            // Ajustado el límite del suelo ya que Snoopy ahora es más alto
-            const limiteSuelo = altoPantalla - 150; 
+            // Límite de altura ajustado a la nueva posición de Snoopy
+            const limiteSuelo = altoPantalla - 240; 
 
             function caer() {
                 if (!juegoActivo) {
@@ -211,33 +261,37 @@
                 posicionY += velocidadCaida;
                 snack.style.top = posicionY + 'px';
 
-                // Detección de colisión adaptada al nuevo tamaño
+                // Detección de colisión
                 if (posicionY >= limiteSuelo && posicionY <= limiteSuelo + 40) {
                     const snackX = parseInt(snack.style.left);
-                    const snoopyX = parseInt(window.getComputedStyle(snoopy).left);
                     
-                    if (snackX + 40 >= snoopyX && snackX <= snoopyX + anchoSnoopy) {
+                    if (snackX + 40 >= posicionSnoopy && snackX <= posicionSnoopy + anchoSnoopy) {
                         puntos++;
                         txtPuntos.innerText = puntos;
                         snack.remove();
 
-                        // REPRODUCIR SONIDO DE ATRAPADO (Resetea el tiempo para que suene rápido si agarra varios seguidos)
                         audioAtrapado.currentTime = 0;
-                        audioAtrapado.play().catch(e => console.log("Error de audio"));
+                        audioAtrapado.play().catch(e => console.log("Audio error"));
 
-                        // Aumento de dificultad más pausado
-                        if (puntos % 10 === 0) velocidadCaida += 0.5;
+                        if (puntos % 8 === 0) velocidadCaida += 0.6;
+                        
+                        // IMPORTANTE: Cuando se atrapa, llamamos a que se genere el siguiente
+                        gestionarFlujoSnacks();
                         return;
                     }
                 }
 
-                if (posicionY > altoPantalla) {
+                // Si cae al fondo (pasa de largo)
+                if (posicionY > (altoPantalla - 100)) {
                     snack.remove();
                     vidas--;
                     txtVidas.innerText = vidas;
 
                     if (vidas <= 0) {
                         finalizarJuego();
+                    } else {
+                        // IMPORTANTE: Si se cae, también llamamos al siguiente
+                        gestionarFlujoSnacks();
                     }
                 } else {
                     requestAnimationFrame(caer);
@@ -250,27 +304,30 @@
         function comenzarJuego() {
             puntos = 0;
             vidas = 5;
-            velocidadCaida = 3.5;
+            velocidadCaida = 4;
             anchoPantalla = pantalla.clientWidth;
-            snoopy.style.left = `calc(50% - ${anchoSnoopy/2}px)`;
+            
+            // Centrar a Snoopy al inicio
+            posicionSnoopy = (anchoPantalla / 2) - (anchoSnoopy / 2);
+            snoopy.style.left = posicionSnoopy + 'px';
             
             txtPuntos.innerText = puntos;
             txtVidas.innerText = vidas;
             menuInicio.style.display = 'none';
             juegoActivo = true;
 
-            audioMusica.play().catch(error => console.log("Esperando interacción"));
+            audioMusica.play().catch(error => console.log("Audio interact"));
 
             document.querySelectorAll('.snack').forEach(s => s.remove());
-
-            clearInterval(intervaloCreacion);
-            // CREADOR DE SNACKS MÁS LENTO: Ahora cada 1800ms (1.8 segundos)
-            intervaloCreacion = setInterval(crearSnack, 1800);
+            clearTimeout(timeoutCreacion);
+            
+            // Lanza el primer snack de la partida
+            crearSnack();
         }
 
         function finalizarJuego() {
             juegoActivo = false;
-            clearInterval(intervaloCreacion);
+            clearTimeout(timeoutCreacion);
             audioMusica.pause();
             audioMusica.currentTime = 0;
             tituloMenu.innerHTML = "¡Fin del Juego! 🍓<br><span style='font-size:24px;'>Puntaje: " + puntos + "</span>";
